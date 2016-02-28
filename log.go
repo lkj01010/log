@@ -32,6 +32,43 @@ var (
 	}
 )
 
+/*
+说明：
+前景色            背景色           颜色
+---------------------------------------
+30                40              黑色
+31                41              红色
+32                42              绿色
+33                43              黃色
+34                44              蓝色
+35                45              紫红色
+36                46              青蓝色
+37                47              白色
+显示方式           意义
+-------------------------
+0                终端默认设置
+1                高亮显示
+4                使用下划线
+5                闪烁
+7                反白显示
+8                不可见
+
+例子：
+\033[1;31;40m    <!--1-高亮显示 31-前景色红色  40-背景色黑色-->
+\033[0m          <!--采用终端默认设置，即取消颜色设置-->
+*/
+var (
+	colorPrefix = map[int]string{
+		LevelDebug:   "\033[34m",
+		LevelInfo:    "\033[32m",
+		LevelWarning: "\033[1;33m",
+		LevelError:   "\033[1;4;31m",
+		LevelPanic:   "\033[1;4;31m",
+		LevelFatal:   "\033[1;4;31m",
+	}
+	colorSuffix = "\033[0m"
+)
+
 func SetLevelName(level int, name string) {
 	levels[level] = name
 }
@@ -55,6 +92,19 @@ func NameLevel(name string) int {
 		level, _ = strconv.Atoi(name[5:])
 	}
 	return level
+}
+
+func levelColorPrefix(level int) string {
+	p, ok := colorPrefix[level]
+	if !ok {
+		log.Println("ERROR: levelColorPrefix not found, levle=%v", level)
+		return ""
+	}
+	return p
+}
+
+func levelColorSuffix() string {
+	return colorSuffix
 }
 
 type Logger struct {
@@ -147,11 +197,22 @@ func (self *Logger) ErrFatal(err error) {
 	}
 }
 
+//lkj add:
+func formatOutput(level int, v ...interface{}) string {
+	return fmt.Sprintf("%s%s: %s%s",
+		levelColorPrefix(level),
+		LevelName(level),
+		fmt.Sprint(v...),
+		levelColorSuffix())
+}
+
 func (self *Logger) Output(level, calldepth int, v ...interface{}) error {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 	if level >= self.level {
-		return self.logger.Output(calldepth, fmt.Sprintf("%s: %s", LevelName(level), fmt.Sprint(v...)))
+		return self.logger.Output(calldepth,
+			formatOutput(level, v),
+		)
 	}
 	return nil
 }
@@ -160,7 +221,13 @@ func (self *Logger) Outputf(level, calldepth int, format string, v ...interface{
 	self.mu.Lock()
 	defer self.mu.Unlock()
 	if level >= self.level {
-		return self.logger.Output(calldepth, fmt.Sprintf("%s: %s", LevelName(level), fmt.Sprintf(format, v...)))
+		//lkj modify:
+//		return self.logger.Output(calldepth, fmt.Sprintf("%s: %s", LevelName(level), fmt.Sprintf(format, v...)))
+		//-->
+		return self.logger.Output(calldepth,
+			formatOutput(level, fmt.Sprintf(format, v...)),
+		)
+		//]]
 	}
 	return nil
 }
@@ -170,8 +237,13 @@ func (self *Logger) Outputln(level, calldepth int, v ...interface{}) error {
 	defer self.mu.Unlock()
 	if level >= self.level {
 		s := fmt.Sprintln(v...)
-		s = s[:len(s)-1]
-		return self.logger.Output(calldepth, fmt.Sprintf("%s: %s", LevelName(level), s))
+		s = s[:len(s) - 1]
+//		return self.logger.Output(calldepth, fmt.Sprintf("%s: %s", LevelName(level), s))
+		//-->
+		return self.logger.Output(calldepth,
+			formatOutput(level, s),
+		)
+		//]]
 	}
 	return nil
 }
@@ -248,7 +320,7 @@ func (self *Logger) Errorln(v ...interface{}) {
 
 func (self *Logger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	s = s[:len(s)-1]
+	s = s[:len(s) - 1]
 	self.Outputln(LevelPanic, 3, s)
 	panic(s)
 }
@@ -258,7 +330,7 @@ func (self *Logger) Fatalln(v ...interface{}) {
 	os.Exit(1)
 }
 
-var std = New(os.Stderr, "", log.LstdFlags|log.Lshortfile, LevelInfo)
+var std = New(os.Stderr, "", log.LstdFlags | log.Lshortfile, LevelInfo)
 
 func SetOutput(w io.Writer) {
 	*std = *New(w, std.logger.Prefix(), std.logger.Flags(), std.level)
@@ -390,7 +462,7 @@ func Errorln(v ...interface{}) {
 
 func Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	s = s[:len(s)-1]
+	s = s[:len(s) - 1]
 	std.Outputln(LevelPanic, 3, s)
 	panic(s)
 }

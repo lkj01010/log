@@ -62,9 +62,9 @@ var (
 		LevelDebug:   "\033[34m",
 		LevelInfo:    "\033[32m",
 		LevelWarning: "\033[1;33m",
-		LevelError:   "\033[1;4;31m",
-		LevelPanic:   "\033[1;4;31m",
-		LevelFatal:   "\033[1;4;31m",
+		LevelError:   "\033[1;31m",
+		LevelPanic:   "\033[1;31m",
+		LevelFatal:   "\033[1;31m",
 	}
 	colorSuffix = "\033[0m"
 )
